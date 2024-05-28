@@ -2,10 +2,16 @@
 
 declare(strict_types=1);
 
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 require_once("vendor/autoload.php");
 //require 'flight/autoload.php';
 //require_once 'flight/Flight.php';
 
+
+/**
+ * Connetion in database
+ */
 Flight::register('db', 'PDO', array('mysql:host=localhost;dbname=pokemons', 'root', ''));
 
 /**
@@ -96,6 +102,47 @@ Flight::route('POST /Pokemons', function () {
         ];
     }
 
+    Flight::json($array);
+});
+
+
+/**
+ * Autentication validation
+ */
+Flight::route('POST /Pokemons/aut', function () {
+    $db = Flight::db();
+    $nombre = Flight::request()->data->nombre;
+    $nivel = Flight::request()->data->nivel;
+
+    $query = $db->prepare("SELECT * FROM `pokemons_t` WHERE `Nombre` = :Nombre AND `Nivel` = :Nivel");
+    
+    $array = [
+        "Error" => "No se pudo validar su autentificacion, por favor intente de nuevo; ",
+        "status" => "Error"
+    ];
+    
+    if ($query->execute([":Nombre" => $nombre, ":Nivel" => $nivel])) {
+        $user = $query->fetch();
+
+        $now = strtotime("now");
+        $key='Example';
+        
+        $payload = [
+            'exp' => $now + 120,
+            'data' => [
+                "ID" => $user['ID'],
+                "Nombre" => $user['Nombre'],
+                "Color" => $user['Color'],
+                "Nivel" => $user['Nivel'],
+                "Tipo" => $user['Tipo']
+                ]
+        ];
+        $jwt = JWT::encode($payload, $key, 'HS256');
+        
+        $array = [
+            "Token" => $jwt
+        ];
+    }
     Flight::json($array);
 });
 
